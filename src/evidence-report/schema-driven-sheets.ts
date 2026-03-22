@@ -16,7 +16,12 @@ import type {
 } from "./types";
 import { strCell, numCell, emptyCell, formatDateTime, sanitizeSheetName } from "./xlsx-cells";
 import { screenshotFormatToMime } from "./png";
-import type { EvidenceSheetResult } from "./evidence-sheets";
+
+/** シート構築結果。 */
+export type EvidenceSheetResult = {
+  readonly sheet: XlsxWorksheet;
+  readonly mediaMap: Map<string, MediaPart>;
+};
 
 /** スクリーンショット行の高さ (pt)。 */
 const SCREENSHOT_ROW_HEIGHT = 20;

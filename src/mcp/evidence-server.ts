@@ -126,7 +126,7 @@ const TOOLS: readonly ToolDef[] = [
   {
     name: "session_end",
     description: "セッションを終了し、操作履歴 JSON と XLSX 証跡を出力する",
-    inputSchema: { type: "object", properties: { templatePath: { type: "string" } } },
+    inputSchema: { type: "object", properties: {} },
   },
   {
     name: "recording_start",
@@ -152,7 +152,7 @@ const TOOLS: readonly ToolDef[] = [
     description: "操作履歴ファイルを再生し、XLSX 証跡を出力する",
     inputSchema: {
       type: "object",
-      properties: { historyPath: { type: "string" }, templatePath: { type: "string" } },
+      properties: { historyPath: { type: "string" } },
       required: ["historyPath"],
     },
   },
@@ -163,7 +163,6 @@ const TOOLS: readonly ToolDef[] = [
       type: "object",
       properties: {
         historyPath: { type: "string", description: "操作履歴 JSON ファイルパス" },
-        templatePath: { type: "string", description: "XLSX テンプレートファイルパス" },
         testCaseName: { type: "string", description: "テストケース名" },
         testCaseUrl: { type: "string", description: "テスト対象 URL" },
       },
@@ -318,7 +317,7 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
       case "session_screenshot":
         return handleSessionScreenshot(args);
       case "session_end":
-        return handleSessionEnd(args);
+        return handleSessionEnd();
       case "recording_start":
         return handleRecordingStart(args);
       case "recording_stop":
@@ -437,7 +436,7 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
     return { content: [{ type: "image", data: uint8ArrayToBase64(data), mimeType: "image/png" }] };
   }
 
-  async function handleSessionEnd(args: Record<string, unknown>): Promise<ToolResult> {
+  async function handleSessionEnd(): Promise<ToolResult> {
     if (state.activeRecording === undefined) {
       return textResult("エラー: セッションが開始されていません。");
     }
@@ -451,9 +450,9 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
     const historyPath = join(outputDir, `history-${timestamp}.json`);
     await writeFile(historyPath, serializeHistory(history));
 
-    const templatePath = args["templatePath"] as string | undefined;
+
     const report = historyToEvidence(history, { testCaseName: state.sessionTitle, testCaseUrl: state.sessionUrl });
-    const xlsxData = await buildEvidenceXlsx(report, { templatePath, schema: state.activeSchema });
+    const xlsxData = await buildEvidenceXlsx(report, { schema: state.activeSchema });
     const xlsxPath = join(outputDir, `evidence-${timestamp}.xlsx`);
     await writeFile(xlsxPath, xlsxData);
 
@@ -500,7 +499,7 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
 
   async function handleReplay(args: Record<string, unknown>): Promise<ToolResult> {
     const historyPath = args["historyPath"] as string;
-    const templatePath = args["templatePath"] as string | undefined;
+
 
     const json = await readFile(historyPath, "utf-8");
     const history = deserializeHistory(json);
@@ -521,7 +520,7 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
       const testCaseUrl = extractNavigateUrl(history);
 
       const report = historyToEvidence(replayed, { testCaseName: history.title, testCaseUrl });
-      const xlsxData = await buildEvidenceXlsx(report, { templatePath, schema: state.activeSchema });
+      const xlsxData = await buildEvidenceXlsx(report, { schema: state.activeSchema });
       const xlsxPath = join(outputDir, `evidence-replayed-${timestamp}.xlsx`);
       await writeFile(xlsxPath, xlsxData);
 
@@ -533,7 +532,7 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
 
   async function handleBuildEvidence(args: Record<string, unknown>): Promise<ToolResult> {
     const historyPath = args["historyPath"] as string;
-    const templatePath = args["templatePath"] as string | undefined;
+
     const testCaseName = args["testCaseName"] as string | undefined;
     const testCaseUrl = args["testCaseUrl"] as string | undefined;
 
@@ -545,7 +544,7 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
       testCaseUrl: testCaseUrl ?? extractNavigateUrl(history),
     });
 
-    const xlsxData = await buildEvidenceXlsx(report, { templatePath, schema: state.activeSchema });
+    const xlsxData = await buildEvidenceXlsx(report, { schema: state.activeSchema });
     const outputDir = await ensureOutputDir();
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const xlsxPath = join(outputDir, `evidence-${timestamp}.xlsx`);
