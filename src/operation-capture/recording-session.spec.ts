@@ -186,4 +186,115 @@ describe("createRecordingSession", () => {
     expect(session.entries).toHaveLength(1);
     expect(session.entries[0].error).toContain("element not found");
   });
+
+  it("propagates screenshotFormat to entries", async () => {
+    const { session: mock } = createFakeSession();
+    const session = createRecordingSession({
+      inner: mock,
+      viewport: { width: 1280, height: 800 },
+      screenshotFormat: "jpeg",
+    });
+
+    await session.navigate("https://example.com");
+
+    expect(session.entries[0].screenshotFormat).toBe("jpeg");
+  });
+
+  it("defaults screenshotFormat to png", async () => {
+    const { session: mock } = createFakeSession();
+    const session = createRecordingSession({
+      inner: mock,
+      viewport: { width: 1280, height: 800 },
+    });
+
+    await session.navigate("https://example.com");
+
+    expect(session.entries[0].screenshotFormat).toBe("png");
+  });
+
+  it("records durationMs as non-negative number", async () => {
+    const { session: mock } = createFakeSession();
+    const session = createRecordingSession({
+      inner: mock,
+      viewport: { width: 1280, height: 800 },
+    });
+
+    await session.navigate("https://example.com");
+    await session.click("a");
+    await session.evaluate("1+1");
+
+    for (const entry of session.entries) {
+      expect(entry.durationMs).toBeGreaterThanOrEqual(0);
+      expect(Number.isInteger(entry.durationMs)).toBe(true);
+    }
+  });
+
+  it("preserves operation order across multiple actions", async () => {
+    const { session: mock } = createFakeSession();
+    const session = createRecordingSession({
+      inner: mock,
+      viewport: { width: 1280, height: 800 },
+    });
+
+    await session.navigate("https://example.com");
+    await session.click("button");
+    await session.type("input", "text");
+    await session.evaluate("1");
+    await session.screenshot();
+
+    expect(session.entries).toHaveLength(5);
+    expect(session.entries[0].operation.kind).toBe("navigate");
+    expect(session.entries[1].operation.kind).toBe("click");
+    expect(session.entries[2].operation.kind).toBe("type");
+    expect(session.entries[3].operation.kind).toBe("evaluate");
+    expect(session.entries[4].operation.kind).toBe("screenshot");
+  });
+
+  it("tracks url from navigate into subsequent entries", async () => {
+    const { session: mock } = createFakeSession();
+    const session = createRecordingSession({
+      inner: mock,
+      viewport: { width: 1280, height: 800 },
+    });
+
+    await session.navigate("https://a.example.com");
+    await session.click("a");
+    await session.navigate("https://b.example.com");
+    await session.click("button");
+
+    expect(session.entries[0].url).toBe("https://a.example.com");
+    expect(session.entries[1].url).toBe("https://a.example.com");
+    expect(session.entries[2].url).toBe("https://b.example.com");
+    expect(session.entries[3].url).toBe("https://b.example.com");
+  });
+
+  it("records ISO 8601 timestamps", async () => {
+    const { session: mock } = createFakeSession();
+    const session = createRecordingSession({
+      inner: mock,
+      viewport: { width: 1280, height: 800 },
+    });
+
+    await session.navigate("https://example.com");
+
+    const ts = session.entries[0].timestamp;
+    expect(new Date(ts).toISOString()).toBe(ts);
+  });
+
+  it("records error entry even when screenshot succeeds after failure", async () => {
+    const { session: mock } = createFakeSession({
+      clickError: new Error("timeout"),
+    });
+    const session = createRecordingSession({
+      inner: mock,
+      viewport: { width: 1280, height: 800 },
+    });
+
+    await expect(session.click("slow")).rejects.toThrow("timeout");
+
+    const entry = session.entries[0];
+    expect(entry.error).toContain("timeout");
+    // スクリーンショットはエラー後も試みられる
+    expect(entry.screenshot).toEqual(new Uint8Array([1, 2, 3]));
+  });
 });

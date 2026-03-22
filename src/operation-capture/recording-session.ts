@@ -6,7 +6,7 @@
  */
 
 import type { BrowserSession, ScreenshotOptions } from "../browser-control/types";
-import type { OperationEntry, OperationHistory } from "../operation-record/operation-types";
+import type { OperationEntry, OperationHistory, StepDescription } from "../operation-record/operation-types";
 
 /** 操作を記録する BrowserSession 拡張。 */
 export type RecordingSession = BrowserSession & {
@@ -14,6 +14,12 @@ export type RecordingSession = BrowserSession & {
   finalizeHistory(title: string): OperationHistory;
   /** 現在の操作エントリ一覧。 */
   readonly entries: readonly OperationEntry[];
+  /** テスト仕様書の操作手順・期待結果を付与して操作する。 */
+  navigateWithStep(url: string, step: StepDescription): Promise<void>;
+  clickWithStep(selector: string, step: StepDescription): Promise<void>;
+  typeWithStep(selector: string, text: string, step: StepDescription): Promise<void>;
+  evaluateWithStep<T>(expression: string, step: StepDescription): Promise<T>;
+  screenshotWithStep(step: StepDescription, options?: ScreenshotOptions): Promise<Uint8Array>;
 };
 
 export type RecordingSessionConfig = {
@@ -53,9 +59,11 @@ export function createRecordingSession(config: RecordingSessionConfig): Recordin
     durationMs: number,
     screenshotData: { screenshot: Uint8Array; screenshotFormat: "png" | "jpeg" | "webp" } | undefined,
     error: string | undefined,
+    step?: StepDescription,
   ): OperationEntry {
     return {
       operation,
+      ...(step !== undefined ? { step } : {}),
       timestamp: new Date().toISOString(),
       url: ctx.currentUrl,
       durationMs,
@@ -67,6 +75,7 @@ export function createRecordingSession(config: RecordingSessionConfig): Recordin
   async function recordAction(
     fn: () => Promise<void>,
     operation: OperationEntry["operation"],
+    step?: StepDescription,
   ): Promise<void> {
     const start = performance.now();
     const outcome = await fn().then(
@@ -75,7 +84,7 @@ export function createRecordingSession(config: RecordingSessionConfig): Recordin
     );
     const durationMs = Math.round(performance.now() - start);
     const screenshotData = await tryCaptureScreenshot();
-    entries.push(buildEntry(operation, durationMs, screenshotData, outcome.error));
+    entries.push(buildEntry(operation, durationMs, screenshotData, outcome.error, step));
     if ("rethrow" in outcome) {
       throw outcome.rethrow;
     }
@@ -137,6 +146,71 @@ export function createRecordingSession(config: RecordingSessionConfig): Recordin
       const durationMs = Math.round(performance.now() - start);
       entries.push({
         operation: { kind: "screenshot", options },
+        timestamp: new Date().toISOString(),
+        url: ctx.currentUrl,
+        durationMs,
+        screenshot: data,
+        screenshotFormat: options?.format ?? screenshotFormat,
+      });
+      return data;
+    },
+
+    async navigateWithStep(url: string, step: StepDescription): Promise<void> {
+      await recordAction(
+        async () => {
+          await inner.navigate(url);
+          ctx.currentUrl = url;
+        },
+        { kind: "navigate", url },
+        step,
+      );
+    },
+
+    async clickWithStep(selector: string, step: StepDescription): Promise<void> {
+      await recordAction(
+        () => inner.click(selector),
+        { kind: "click", selector },
+        step,
+      );
+    },
+
+    async typeWithStep(selector: string, text: string, step: StepDescription): Promise<void> {
+      await recordAction(
+        () => inner.type(selector, text),
+        { kind: "type", selector, text },
+        step,
+      );
+    },
+
+    async evaluateWithStep<T>(expression: string, step: StepDescription): Promise<T> {
+      const start = performance.now();
+      const outcome = await inner.evaluate<T>(expression).then(
+        (value) => ({ value, error: undefined as string | undefined }),
+        (err: unknown) => ({ value: undefined, error: String(err), rethrow: err }),
+      );
+      const durationMs = Math.round(performance.now() - start);
+      entries.push({
+        operation: { kind: "evaluate", expression },
+        step,
+        timestamp: new Date().toISOString(),
+        url: ctx.currentUrl,
+        durationMs,
+        evaluateResult: outcome.error === undefined ? outcome.value : undefined,
+        ...(outcome.error !== undefined ? { error: outcome.error } : {}),
+      });
+      if ("rethrow" in outcome) {
+        throw outcome.rethrow;
+      }
+      return outcome.value as T;
+    },
+
+    async screenshotWithStep(step: StepDescription, options?: ScreenshotOptions): Promise<Uint8Array> {
+      const start = performance.now();
+      const data = await inner.screenshot(options);
+      const durationMs = Math.round(performance.now() - start);
+      entries.push({
+        operation: { kind: "screenshot", options },
+        step,
         timestamp: new Date().toISOString(),
         url: ctx.currentUrl,
         durationMs,

@@ -15,9 +15,19 @@ export type BrowserOperation =
   | { readonly kind: "screenshot"; readonly options?: ScreenshotOptions }
   | { readonly kind: "wait"; readonly ms: number };
 
+/** テスト仕様書における操作ステップの記述。 */
+export type StepDescription = {
+  /** 操作手順 (例: "ログインボタンを押下する")。 */
+  readonly action: string;
+  /** 期待結果 (例: "ダッシュボード画面に遷移すること")。 */
+  readonly expected: string;
+};
+
 /** 操作実行後のエントリ (操作 + 実行結果メタデータ)。 */
 export type OperationEntry = {
   readonly operation: BrowserOperation;
+  /** テスト仕様書の操作手順・期待結果。省略時は operation から自動生成。 */
+  readonly step?: StepDescription;
   /** 操作実行時刻 (ISO 8601)。 */
   readonly timestamp: string;
   /** 操作時点の URL。 */

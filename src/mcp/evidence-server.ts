@@ -19,6 +19,7 @@ import { serializeHistory, deserializeHistory } from "../operation-record/operat
 import { historyToEvidence } from "../operation-replay/history-to-evidence";
 import { buildEvidenceXlsx } from "../evidence-report/xlsx-builder";
 import { createCdpRecorder, type CdpRecorder } from "../operation-capture/cdp-recorder";
+import type { StepDescription } from "../operation-record/operation-types";
 
 export type EvidenceServerConfig = {
   readonly strategy: CaptureStrategy;
@@ -55,31 +56,67 @@ const TOOLS: readonly ToolDef[] = [
   {
     name: "session_navigate",
     description: "指定 URL に遷移する (自動スクリーンショット)",
-    inputSchema: { type: "object", properties: { url: { type: "string" } }, required: ["url"] },
+    inputSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string" },
+        stepAction: { type: "string", description: "テスト仕様書の操作手順 (例: 'ログイン画面を表示する')" },
+        stepExpected: { type: "string", description: "テスト仕様書の期待結果 (例: 'ログイン画面が表示されること')" },
+      },
+      required: ["url"],
+    },
   },
   {
     name: "session_click",
     description: "要素をクリックする (自動スクリーンショット)",
-    inputSchema: { type: "object", properties: { selector: { type: "string" } }, required: ["selector"] },
+    inputSchema: {
+      type: "object",
+      properties: {
+        selector: { type: "string" },
+        stepAction: { type: "string", description: "テスト仕様書の操作手順 (例: 'ログインボタンを押下する')" },
+        stepExpected: { type: "string", description: "テスト仕様書の期待結果 (例: 'ダッシュボード画面に遷移すること')" },
+      },
+      required: ["selector"],
+    },
   },
   {
     name: "session_type",
     description: "要素にテキストを入力する (自動スクリーンショット)",
     inputSchema: {
       type: "object",
-      properties: { selector: { type: "string" }, text: { type: "string" } },
+      properties: {
+        selector: { type: "string" },
+        text: { type: "string" },
+        stepAction: { type: "string", description: "テスト仕様書の操作手順 (例: 'ユーザー名に「admin」を入力する')" },
+        stepExpected: { type: "string", description: "テスト仕様書の期待結果 (例: 'ユーザー名欄に「admin」が入力されること')" },
+      },
       required: ["selector", "text"],
     },
   },
   {
     name: "session_evaluate",
     description: "JavaScript 式を評価し、結果を返す",
-    inputSchema: { type: "object", properties: { expression: { type: "string" } }, required: ["expression"] },
+    inputSchema: {
+      type: "object",
+      properties: {
+        expression: { type: "string" },
+        stepAction: { type: "string", description: "テスト仕様書の操作手順 (例: 'ページタイトルを確認する')" },
+        stepExpected: { type: "string", description: "テスト仕様書の期待結果 (例: 'タイトルが「Example Domain」であること')" },
+      },
+      required: ["expression"],
+    },
   },
   {
     name: "session_screenshot",
     description: "スクリーンショットを取得する (base64 画像を返す)",
-    inputSchema: { type: "object", properties: { fullPage: { type: "boolean" } } },
+    inputSchema: {
+      type: "object",
+      properties: {
+        fullPage: { type: "boolean" },
+        stepAction: { type: "string", description: "テスト仕様書の操作手順 (例: '画面全体のスクリーンショットを取得する')" },
+        stepExpected: { type: "string", description: "テスト仕様書の期待結果 (例: '正常に画面が表示されていること')" },
+      },
+    },
   },
   {
     name: "session_end",
@@ -114,6 +151,35 @@ const TOOLS: readonly ToolDef[] = [
       required: ["historyPath"],
     },
   },
+  {
+    name: "build_evidence",
+    description: "操作履歴 JSON から XLSX 証跡ファイルを生成する (セッション不要)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        historyPath: { type: "string", description: "操作履歴 JSON ファイルパス" },
+        templatePath: { type: "string", description: "XLSX テンプレートファイルパス" },
+        testCaseName: { type: "string", description: "テストケース名" },
+        testCaseUrl: { type: "string", description: "テスト対象 URL" },
+      },
+      required: ["historyPath"],
+    },
+  },
+  {
+    name: "capture_screenshot",
+    description: "指定 URL のスクリーンショットを撮影する (セッション不要、単発)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "撮影対象の URL" },
+        fullPage: { type: "boolean", description: "フルページスクリーンショット" },
+        viewportWidth: { type: "number", description: "ビューポート幅" },
+        viewportHeight: { type: "number", description: "ビューポート高さ" },
+        outputPath: { type: "string", description: "PNG ファイル保存先パス (省略時は base64 のみ返却)" },
+      },
+      required: ["url"],
+    },
+  },
 ];
 
 type TextContent = { type: "text"; text: string };
@@ -122,6 +188,15 @@ type ToolResult = { content: (TextContent | ImageContent)[] };
 
 function textResult(text: string): ToolResult {
   return { content: [{ type: "text", text }] };
+}
+
+function extractStep(args: Record<string, unknown>): StepDescription | undefined {
+  const action = args["stepAction"] as string | undefined;
+  const expected = args["stepExpected"] as string | undefined;
+  if (action !== undefined && expected !== undefined) {
+    return { action, expected };
+  }
+  return undefined;
 }
 
 /** 証跡エビデンス MCP サーバーを生成する。 */
@@ -185,6 +260,10 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
         return handleRecordingStop();
       case "replay":
         return handleReplay(args);
+      case "build_evidence":
+        return handleBuildEvidence(args);
+      case "capture_screenshot":
+        return handleCaptureScreenshot(args);
       default:
         return textResult(`不明なツール: ${name}`);
     }
@@ -221,7 +300,12 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
       return textResult("エラー: セッションが開始されていません。");
     }
     const url = args["url"] as string;
-    await state.activeRecording.navigate(url);
+    const step = extractStep(args);
+    if (step !== undefined) {
+      await state.activeRecording.navigateWithStep(url, step);
+    } else {
+      await state.activeRecording.navigate(url);
+    }
     return textResult(`遷移完了: ${url}`);
   }
 
@@ -230,7 +314,12 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
       return textResult("エラー: セッションが開始されていません。");
     }
     const selector = args["selector"] as string;
-    await state.activeRecording.click(selector);
+    const step = extractStep(args);
+    if (step !== undefined) {
+      await state.activeRecording.clickWithStep(selector, step);
+    } else {
+      await state.activeRecording.click(selector);
+    }
     return textResult(`クリック完了: ${selector}`);
   }
 
@@ -240,7 +329,12 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
     }
     const selector = args["selector"] as string;
     const text = args["text"] as string;
-    await state.activeRecording.type(selector, text);
+    const step = extractStep(args);
+    if (step !== undefined) {
+      await state.activeRecording.typeWithStep(selector, text, step);
+    } else {
+      await state.activeRecording.type(selector, text);
+    }
     return textResult(`入力完了: ${selector}`);
   }
 
@@ -249,6 +343,11 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
       return textResult("エラー: セッションが開始されていません。");
     }
     const expression = args["expression"] as string;
+    const step = extractStep(args);
+    if (step !== undefined) {
+      const result = await state.activeRecording.evaluateWithStep(expression, step);
+      return textResult(JSON.stringify(result));
+    }
     const result = await state.activeRecording.evaluate(expression);
     return textResult(JSON.stringify(result));
   }
@@ -258,9 +357,13 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
       return textResult("エラー: セッションが開始されていません。");
     }
     const fullPage = args["fullPage"] as boolean | undefined;
+    const step = extractStep(args);
+    if (step !== undefined) {
+      const data = await state.activeRecording.screenshotWithStep(step, { fullPage });
+      return { content: [{ type: "image", data: uint8ArrayToBase64(data), mimeType: "image/png" }] };
+    }
     const data = await state.activeRecording.screenshot({ fullPage });
-    const base64 = uint8ArrayToBase64(data);
-    return { content: [{ type: "image", data: base64, mimeType: "image/png" }] };
+    return { content: [{ type: "image", data: uint8ArrayToBase64(data), mimeType: "image/png" }] };
   }
 
   async function handleSessionEnd(args: Record<string, unknown>): Promise<ToolResult> {
@@ -352,6 +455,56 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
       await writeFile(xlsxPath, xlsxData);
 
       return textResult(`再生完了\n操作履歴: ${replayedHistoryPath}\n証跡 XLSX: ${xlsxPath}`);
+    } finally {
+      await session.close();
+    }
+  }
+
+  async function handleBuildEvidence(args: Record<string, unknown>): Promise<ToolResult> {
+    const historyPath = args["historyPath"] as string;
+    const templatePath = args["templatePath"] as string | undefined;
+    const testCaseName = args["testCaseName"] as string | undefined;
+    const testCaseUrl = args["testCaseUrl"] as string | undefined;
+
+    const json = await readFile(historyPath, "utf-8");
+    const history = deserializeHistory(json);
+
+    const report = historyToEvidence(history, {
+      testCaseName: testCaseName ?? history.title,
+      testCaseUrl: testCaseUrl ?? extractNavigateUrl(history),
+    });
+
+    const xlsxData = await buildEvidenceXlsx(report, { templatePath });
+    const outputDir = await ensureOutputDir();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const xlsxPath = join(outputDir, `evidence-${timestamp}.xlsx`);
+    await writeFile(xlsxPath, xlsxData);
+
+    return textResult(`証跡 XLSX 生成完了: ${xlsxPath}`);
+  }
+
+  async function handleCaptureScreenshot(args: Record<string, unknown>): Promise<ToolResult> {
+    const url = args["url"] as string;
+    const fullPage = args["fullPage"] as boolean | undefined;
+    const vw = args["viewportWidth"] as number | undefined;
+    const vh = args["viewportHeight"] as number | undefined;
+    const outputPath = args["outputPath"] as string | undefined;
+
+    const viewport = (vw !== undefined && vh !== undefined) ? { width: vw, height: vh } : defaultViewport;
+    const launchOptions: LaunchOptions = { ...config.launchOptions, viewport };
+
+    const session = await config.strategy.launch(launchOptions);
+    try {
+      await session.navigate(url);
+      const data = await session.screenshot({ fullPage: fullPage ?? true });
+
+      if (outputPath !== undefined) {
+        await writeFile(outputPath, data);
+        return textResult(`スクリーンショット保存: ${outputPath} (${data.length} bytes)`);
+      }
+
+      const base64 = uint8ArrayToBase64(data);
+      return { content: [{ type: "image", data: base64, mimeType: "image/png" }] };
     } finally {
       await session.close();
     }

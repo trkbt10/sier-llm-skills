@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "evidence": {
+      "type": "stdio",
+      "command": "bun",
+      "args": [
+        "run",
+        "src/mcp/serve.ts"
+      ],
+      "env": {
+        "OUTPUT_DIR": "./output/mcp-evidence"
+      }
+    }
+  }
+}

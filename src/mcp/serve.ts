@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * @file 証跡エビデンス MCP サーバーの CLI エントリポイント。
  *

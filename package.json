@@ -1,16 +1,21 @@
 {
-  "name": "screenschot-evidence-for-llm",
-  "version": "0.1.0",
+  "name": "screenshot-evidence-for-llm",
+  "version": "0.2.0",
   "type": "module",
-  "main": "dist/index.cjs",
-  "module": "dist/index.js",
+  "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": "./dist/index.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp-serve.d.ts",
+      "import": "./dist/mcp-serve.js"
     }
+  },
+  "bin": {
+    "evidence-mcp": "./dist/mcp-serve.js"
   },
   "packageManager": "bun@1.3.11",
   "sideEffects": false,
@@ -50,7 +55,14 @@
     "@modelcontextprotocol/sdk": "^1.27.1",
     "aurochs": "file:../web-pptx/publish/aurochs",
     "chrome-remote-interface": "^0.34.0",
-    "fflate": "^0.8.2",
-    "playwright": "^1.52.0"
+    "fflate": "^0.8.2"
+  },
+  "peerDependencies": {
+    "playwright": ">=1.40.0"
+  },
+  "peerDependenciesMeta": {
+    "playwright": {
+      "optional": true
+    }
   }
 }

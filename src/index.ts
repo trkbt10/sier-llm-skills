@@ -37,6 +37,7 @@ export type {
   BrowserOperation,
   OperationEntry,
   OperationHistory,
+  StepDescription,
 } from "./operation-record/operation-types";
 export { serializeHistory, deserializeHistory } from "./operation-record/operation-io";
 export { createRecordingSession } from "./operation-capture/recording-session";

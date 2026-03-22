@@ -26,9 +26,9 @@ export function historyToEvidence(
 
     steps.push({
       stepNumber: steps.length + 1,
-      action: describeAction(entry),
+      action: entry.step?.action ?? describeAction(entry),
       url: entry.url,
-      expected: describeExpected(entry),
+      expected: entry.step?.expected ?? describeExpected(entry),
       actual: describeActual(entry),
       screenshot: entry.screenshot,
       screenshotFormat: entry.screenshotFormat ?? "png",
