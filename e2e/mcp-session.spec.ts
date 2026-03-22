@@ -55,9 +55,9 @@ describe("MCP session e2e", () => {
     }
   });
 
-  it("lists all 15 tools", async () => {
+  it("lists all 16 tools", async () => {
     const { tools } = await clientHolder.value!.listTools();
-    expect(tools).toHaveLength(15);
+    expect(tools).toHaveLength(16);
     const names = tools.map((t) => t.name);
     expect(names).toContain("session_start");
     expect(names).toContain("session_navigate");
@@ -74,6 +74,7 @@ describe("MCP session e2e", () => {
     expect(names).toContain("read_test_spec");
     expect(names).toContain("write_test_result");
     expect(names).toContain("generate_schema");
+    expect(names).toContain("patch_screenshots");
   });
 
   it("runs a full session: start → navigate → evaluate → click → screenshot → end", async () => {

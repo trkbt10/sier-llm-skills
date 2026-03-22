@@ -63,6 +63,8 @@ export type { CdpRecorder, CdpRecorderConfig } from "./operation-capture/cdp-rec
 export { readXlsxAsText, formatXlsxForLlm, formatSheetForLlm } from "./evidence-io/xlsx-reader";
 export type { SheetText, SheetRow, SheetCell, XlsxReadResult } from "./evidence-io/xlsx-reader";
 export { updateXlsxCells } from "./evidence-io/xlsx-writer";
+export { patchXlsxWithImages } from "./evidence-io/xlsx-image-patcher";
+export type { ImageInsert, SheetImagePatch } from "./evidence-io/xlsx-image-patcher";
 
 // MCP サーバー
 export { createEvidenceServer } from "./mcp/evidence-server";

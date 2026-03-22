@@ -25,6 +25,8 @@ import { updateXlsxCells } from "../evidence-io/xlsx-writer";
 import type { SheetUpdate } from "../evidence-io/xlsx-writer";
 import type { EvidenceSheetSchema } from "../evidence-schema/types";
 import { validateEvidenceSheetSchema } from "../evidence-schema/schema-validator";
+import { patchXlsxWithImages } from "../evidence-io/xlsx-image-patcher";
+import type { ImageInsert } from "../evidence-io/xlsx-image-patcher";
 
 export type EvidenceServerConfig = {
   readonly strategy: CaptureStrategy;
@@ -242,6 +244,35 @@ const TOOLS: readonly ToolDef[] = [
       required: ["schema"],
     },
   },
+  {
+    name: "patch_screenshots",
+    description: "既存 XLSX ファイルにスクリーンショット画像を直接注入する。元のデザインを維持したまま画像を追加する",
+    inputSchema: {
+      type: "object",
+      properties: {
+        inputPath: { type: "string", description: "入力 XLSX ファイルパス" },
+        outputPath: { type: "string", description: "出力 XLSX ファイルパス" },
+        sheetXmlPath: { type: "string", description: "シート XML パス (例: xl/worksheets/sheet1.xml)" },
+        images: {
+          type: "array",
+          description: "挿入する画像群",
+          items: {
+            type: "object",
+            properties: {
+              historyPath: { type: "string", description: "操作履歴 JSON パス (スクショ取得元)" },
+              stepIndex: { type: "number", description: "操作履歴内のステップ番号 (0始まり)" },
+              fromCol: { type: "number", description: "開始列 (0-based)" },
+              fromRow: { type: "number", description: "開始行 (0-based)" },
+              toCol: { type: "number", description: "終了列 (0-based)" },
+              toRow: { type: "number", description: "終了行 (0-based)" },
+            },
+            required: ["historyPath", "stepIndex", "fromCol", "fromRow", "toCol", "toRow"],
+          },
+        },
+      },
+      required: ["inputPath", "outputPath", "sheetXmlPath", "images"],
+    },
+  },
 ];
 
 type TextContent = { type: "text"; text: string };
@@ -334,6 +365,8 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
         return handleWriteTestResult(args);
       case "generate_schema":
         return handleGenerateSchema(args);
+      case "patch_screenshots":
+        return handlePatchScreenshots(args);
       default:
         return textResult(`不明なツール: ${name}`);
     }
@@ -637,6 +670,46 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
     } catch (err) {
       return textResult(`スキーマバリデーションエラー: ${String(err)}`);
     }
+  }
+
+  async function handlePatchScreenshots(args: Record<string, unknown>): Promise<ToolResult> {
+    const inputPath = args["inputPath"] as string;
+    const outputPath = args["outputPath"] as string;
+    const sheetXmlPath = args["sheetXmlPath"] as string;
+    const rawImages = args["images"] as Array<{
+      historyPath: string;
+      stepIndex: number;
+      fromCol: number;
+      fromRow: number;
+      toCol: number;
+      toRow: number;
+    }>;
+
+    // 操作履歴からスクリーンショットを取得
+    const images: ImageInsert[] = [];
+    for (const raw of rawImages) {
+      const json = await readFile(raw.historyPath, "utf-8");
+      const history = deserializeHistory(json);
+      const entriesWithScreenshot = history.entries.filter((e) => e.screenshot !== undefined);
+      if (raw.stepIndex >= entriesWithScreenshot.length) {
+        return textResult(`エラー: stepIndex ${raw.stepIndex} が範囲外 (スクショ付きエントリ: ${entriesWithScreenshot.length})`);
+      }
+      const entry = entriesWithScreenshot[raw.stepIndex];
+      images.push({
+        data: entry.screenshot!,
+        fromCol: raw.fromCol,
+        fromRow: raw.fromRow,
+        toCol: raw.toCol,
+        toRow: raw.toRow,
+      });
+    }
+
+    await patchXlsxWithImages(inputPath, outputPath, [{
+      sheetXmlPath,
+      images,
+    }]);
+
+    return textResult(`スクリーンショット注入完了: ${outputPath} (${images.length} 枚)`);
   }
 
   return server;
