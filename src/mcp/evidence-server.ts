@@ -18,6 +18,7 @@ import { replayHistory } from "../operation-replay/replay";
 import { serializeHistory, deserializeHistory } from "../operation-record/operation-io";
 import { historyToEvidence } from "../operation-replay/history-to-evidence";
 import { buildEvidenceXlsx } from "../evidence-xlsx/xlsx-builder";
+import { screenshotFormatToMime } from "../evidence-xlsx/png";
 import { createCdpRecorder, type CdpRecorder } from "../operation-capture/cdp-recorder";
 import type { StepDescription } from "../operation-record/operation-types";
 import { readXlsxAsText, formatXlsxForLlm, formatSheetForLlm } from "../evidence-io/xlsx-reader";
@@ -697,6 +698,7 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
       const entry = entriesWithScreenshot[raw.stepIndex];
       images.push({
         data: entry.screenshot!,
+        contentType: screenshotFormatToMime(entry.screenshotFormat ?? "png"),
         fromCol: raw.fromCol,
         fromRow: raw.fromRow,
         toCol: raw.toCol,

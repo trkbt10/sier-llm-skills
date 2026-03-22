@@ -7,7 +7,7 @@
 
 import { rowIdx, colIdx, styleId } from "aurochs/xlsx/domain";
 import type {
-  XlsxWorksheet, XlsxRow, XlsxDrawingAnchor, CellRange, CellAddress,
+  XlsxWorksheet, XlsxRow, CellRange, CellAddress,
   Cell,
 } from "aurochs/xlsx/domain";
 import type { MediaPart } from "aurochs/xlsx/builder";
@@ -15,7 +15,7 @@ import type {
   EvidenceTestCase, EvidenceStep, EvidenceSheetSchema,
 } from "../evidence-schema/types";
 import { strCell, numCell, emptyCell, formatDateTime, sanitizeSheetName } from "./xlsx-cells";
-import { screenshotFormatToMime, computeImageExtent } from "./png";
+import { buildDrawingFromImages, type ImageSpec } from "./image-to-drawing";
 
 /** シート構築結果。 */
 export type EvidenceSheetResult = {
@@ -85,8 +85,7 @@ export function buildEvidenceSheetFromSchema(
   };
 
   const rows: XlsxRow[] = [headerXlsxRow];
-  const anchors: XlsxDrawingAnchor[] = [];
-  const mediaMap = new Map<string, MediaPart>();
+  const imageSpecs: ImageSpec[] = [];
   const mergeCells: CellRange[] = [];
 
   // 全テストケースのステップを平坦化
@@ -133,39 +132,19 @@ export function buildEvidenceSheetFromSchema(
     // スクリーンショット列を結合
     mergeCells.push(mergeRange(screenshot.columnIndex, dataRow, screenshot.columnIndex, blockEndRow));
 
-    // twoCellAnchor
-    const relId = `rId${idx + 1}`;
-
-    const extent = computeImageExtent(step.screenshot);
-
-    anchors.push({
-      type: "twoCellAnchor",
-      editAs: "oneCell",
-      from: {
-        col: colIdx(screenshot.columnIndex - 1),
-        colOff: 0,
-        row: rowIdx(dataRow - 1),
-        rowOff: 0,
-      },
-      to: {
-        col: colIdx(screenshot.columnIndex),
-        colOff: 0,
-        row: rowIdx(blockEndRow),
-        rowOff: 0,
-      },
-      content: {
-        type: "picture",
-        nvPicPr: { id: idx + 1, name: `Screenshot${idx + 1}` },
-        blipRelId: relId,
-        extent,
-      },
-    });
-
-    mediaMap.set(relId, {
+    // 画像配置仕様を収集 (SoT: image-to-drawing.ts)
+    imageSpecs.push({
       data: step.screenshot,
-      contentType: screenshotFormatToMime(step.screenshotFormat),
+      format: step.screenshotFormat,
+      fromCol: screenshot.columnIndex,
+      fromRow: dataRow,
+      toCol: screenshot.columnIndex + 1,
+      toRow: blockEndRow + 1,
+      name: `Screenshot${idx + 1}`,
     });
   }
+
+  const drawingResult = buildDrawingFromImages(imageSpecs);
 
   const sheet: XlsxWorksheet = {
     dateSystem: "1900",
@@ -186,11 +165,11 @@ export function buildEvidenceSheetFromSchema(
       },
     ],
     mergeCells,
-    drawing: { anchors },
+    drawing: { anchors: drawingResult.anchors },
     xmlPath: "xl/worksheets/sheet1.xml",
   };
 
-  return { sheet, mediaMap };
+  return { sheet, mediaMap: drawingResult.mediaMap };
 }
 
 /**
