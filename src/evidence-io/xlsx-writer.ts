@@ -4,8 +4,9 @@
  * aurochs の patchWorkbook を使って既存 XLSX のセルを更新する。
  */
 
-import { parseWorkbook, patchWorkbook } from "aurochs/xlsx/parser";
-import type { CellUpdate, SheetUpdate } from "aurochs/xlsx/parser";
+import { parseWorkbook } from "aurochs/xlsx/parser";
+import { patchWorkbook } from "aurochs/xlsx/patcher";
+import type { CellUpdate, SheetUpdate } from "aurochs/xlsx/patcher";
 import { readFile, writeFile } from "node:fs/promises";
 
 export type { CellUpdate, SheetUpdate };

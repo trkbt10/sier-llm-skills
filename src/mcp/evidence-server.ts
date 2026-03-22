@@ -252,7 +252,7 @@ const TOOLS: readonly ToolDef[] = [
       properties: {
         inputPath: { type: "string", description: "入力 XLSX ファイルパス" },
         outputPath: { type: "string", description: "出力 XLSX ファイルパス" },
-        sheetXmlPath: { type: "string", description: "シート XML パス (例: xl/worksheets/sheet1.xml)" },
+        sheetName: { type: "string", description: "シート名 (例: Evidence)" },
         images: {
           type: "array",
           description: "挿入する画像群",
@@ -270,7 +270,7 @@ const TOOLS: readonly ToolDef[] = [
           },
         },
       },
-      required: ["inputPath", "outputPath", "sheetXmlPath", "images"],
+      required: ["inputPath", "outputPath", "sheetName", "images"],
     },
   },
 ];
@@ -675,7 +675,7 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
   async function handlePatchScreenshots(args: Record<string, unknown>): Promise<ToolResult> {
     const inputPath = args["inputPath"] as string;
     const outputPath = args["outputPath"] as string;
-    const sheetXmlPath = args["sheetXmlPath"] as string;
+    const sheetName = args["sheetName"] as string;
     const rawImages = args["images"] as Array<{
       historyPath: string;
       stepIndex: number;
@@ -705,7 +705,7 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
     }
 
     await patchXlsxWithImages(inputPath, outputPath, [{
-      sheetXmlPath,
+      sheetName,
       images,
     }]);
 
