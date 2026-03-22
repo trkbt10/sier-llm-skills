@@ -24,6 +24,7 @@ export type {
 } from "./capture/types";
 
 export { buildEvidenceXlsx } from "./evidence/xlsx-builder";
+export type { BuildEvidenceXlsxOptions } from "./evidence/xlsx-builder";
 
 export type {
   EvidenceStep,
