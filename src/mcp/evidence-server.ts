@@ -23,6 +23,8 @@ import type { StepDescription } from "../operation-record/operation-types";
 import { readXlsxAsText, formatXlsxForLlm, formatSheetForLlm } from "../evidence-report/xlsx-reader";
 import { updateXlsxCells } from "../evidence-report/xlsx-writer";
 import type { SheetUpdate } from "../evidence-report/xlsx-writer";
+import type { EvidenceSheetSchema } from "../evidence-report/types";
+import { validateEvidenceSheetSchema } from "../evidence-report/schema-validator";
 
 export type EvidenceServerConfig = {
   readonly strategy: CaptureStrategy;
@@ -230,6 +232,17 @@ const TOOLS: readonly ToolDef[] = [
       required: ["inputPath", "outputPath", "updates"],
     },
   },
+  {
+    name: "generate_schema",
+    description: "LLM が read_test_spec で推測したテスト仕様書のマッピングスキーマを登録する。後続の build_evidence / session_end / replay がこのスキーマを使用する",
+    inputSchema: {
+      type: "object",
+      properties: {
+        schema: { type: "object", description: "EvidenceSheetSchema JSON" },
+      },
+      required: ["schema"],
+    },
+  },
 ];
 
 type TextContent = { type: "text"; text: string };
@@ -262,12 +275,14 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
     sessionTitle: string;
     sessionUrl: string;
     activeCdpRecorder: CdpRecorder | undefined;
+    activeSchema: EvidenceSheetSchema | undefined;
   } = {
     activeRecording: undefined,
     activeSession: undefined,
     sessionTitle: "",
     sessionUrl: "",
     activeCdpRecorder: undefined,
+    activeSchema: undefined,
   };
 
   const defaultViewport = config.launchOptions?.viewport ?? { width: 1280, height: 800 };
@@ -318,6 +333,8 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
         return handleReadTestSpec(args);
       case "write_test_result":
         return handleWriteTestResult(args);
+      case "generate_schema":
+        return handleGenerateSchema(args);
       default:
         return textResult(`不明なツール: ${name}`);
     }
@@ -436,7 +453,7 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
 
     const templatePath = args["templatePath"] as string | undefined;
     const report = historyToEvidence(history, { testCaseName: state.sessionTitle, testCaseUrl: state.sessionUrl });
-    const xlsxData = await buildEvidenceXlsx(report, { templatePath });
+    const xlsxData = await buildEvidenceXlsx(report, { templatePath, schema: state.activeSchema });
     const xlsxPath = join(outputDir, `evidence-${timestamp}.xlsx`);
     await writeFile(xlsxPath, xlsxData);
 
@@ -504,7 +521,7 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
       const testCaseUrl = extractNavigateUrl(history);
 
       const report = historyToEvidence(replayed, { testCaseName: history.title, testCaseUrl });
-      const xlsxData = await buildEvidenceXlsx(report, { templatePath });
+      const xlsxData = await buildEvidenceXlsx(report, { templatePath, schema: state.activeSchema });
       const xlsxPath = join(outputDir, `evidence-replayed-${timestamp}.xlsx`);
       await writeFile(xlsxPath, xlsxData);
 
@@ -528,7 +545,7 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
       testCaseUrl: testCaseUrl ?? extractNavigateUrl(history),
     });
 
-    const xlsxData = await buildEvidenceXlsx(report, { templatePath });
+    const xlsxData = await buildEvidenceXlsx(report, { templatePath, schema: state.activeSchema });
     const outputDir = await ensureOutputDir();
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const xlsxPath = join(outputDir, `evidence-${timestamp}.xlsx`);
@@ -599,7 +616,38 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
     return textResult(`XLSX 更新完了: ${outputPath} (${totalCells} セル更新)`);
   }
 
+  async function handleGenerateSchema(args: Record<string, unknown>): Promise<ToolResult> {
+    const rawSchema = args["schema"];
+    try {
+      const schema = validateEvidenceSheetSchema(rawSchema);
+      state.activeSchema = schema;
+
+      const outputDir = await ensureOutputDir();
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const schemaPath = join(outputDir, `schema-${timestamp}.json`);
+      await writeFile(schemaPath, JSON.stringify(schema, undefined, 2));
+
+      const colCount = schema.evidenceSheet.columns.length;
+      const fields = schema.evidenceSheet.columns.map((c) => c.field).join(", ");
+      const coverInfo = formatCoverInfo(schema);
+      return textResult(
+        `スキーマ登録完了\n` +
+        `証跡シート: ${schema.evidenceSheet.sheetName} (${colCount} カラム: ${fields})${coverInfo}\n` +
+        `保存先: ${schemaPath}`,
+      );
+    } catch (err) {
+      return textResult(`スキーマバリデーションエラー: ${String(err)}`);
+    }
+  }
+
   return server;
+}
+
+function formatCoverInfo(schema: EvidenceSheetSchema): string {
+  if (schema.coverSheet === undefined) {
+    return "";
+  }
+  return `\n表紙シート: ${schema.coverSheet.sheetName} (${schema.coverSheet.fields.length} フィールド)`;
 }
 
 function extractNavigateUrl(history: { readonly entries: readonly { readonly operation: { readonly kind: string } }[] }): string {

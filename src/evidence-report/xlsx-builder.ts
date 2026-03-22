@@ -13,12 +13,13 @@ import { loadZipPackage } from "aurochs/zip";
 import type { XlsxWorkbook, XlsxWorksheet } from "aurochs/xlsx/domain";
 import type { ZipPackage } from "aurochs/zip";
 import { readFile } from "node:fs/promises";
-import type { EvidenceReport, TemplateConfig } from "./types";
+import type { EvidenceReport, EvidenceSheetSchema, TemplateConfig } from "./types";
 import { buildEvidenceStyleSheet } from "./xlsx-cells";
 import {
   buildSummarySheet, buildEvidenceSheet, injectIntoTemplateSheet,
   type EvidenceSheetResult,
 } from "./evidence-sheets";
+import { buildEvidenceSheetFromSchema } from "./schema-driven-sheets";
 
 /** buildEvidenceXlsx のオプション。 */
 export type BuildEvidenceXlsxOptions = {
@@ -26,6 +27,8 @@ export type BuildEvidenceXlsxOptions = {
   readonly templatePath?: string;
   /** テンプレート設定 JSON パス。省略時は templatePath の拡張子を .json に変えて探索。 */
   readonly templateConfigPath?: string;
+  /** LLM が生成したマッピングスキーマ。指定時はスキーマ駆動で構築する。 */
+  readonly schema?: EvidenceSheetSchema;
 };
 
 type TemplateData = {
@@ -41,12 +44,37 @@ export async function buildEvidenceXlsx(
   report: EvidenceReport,
   options?: BuildEvidenceXlsxOptions,
 ): Promise<Uint8Array> {
+  if (options?.schema) {
+    return buildWithSchema(report, options.schema);
+  }
+
   const template = await loadTemplate(options);
 
   if (template) {
     return buildWithTemplate(report, template);
   }
   return buildWithoutTemplate(report);
+}
+
+function buildWithSchema(report: EvidenceReport, schema: EvidenceSheetSchema): Promise<Uint8Array> {
+  const evidenceResult = buildEvidenceSheetFromSchema(
+    schema.evidenceSheet,
+    report.testCases,
+  );
+
+  const workbook: XlsxWorkbook = {
+    dateSystem: "1900",
+    sheets: [evidenceResult.sheet],
+    styles: buildEvidenceStyleSheet(),
+    sharedStrings: [],
+  };
+
+  const sheetMedia = new Map<number, ReadonlyMap<string, MediaPart>>();
+  if (evidenceResult.mediaMap.size > 0) {
+    sheetMedia.set(0, evidenceResult.mediaMap);
+  }
+
+  return exportXlsx(workbook, { sheetMedia });
 }
 
 function buildWithoutTemplate(report: EvidenceReport): Promise<Uint8Array> {

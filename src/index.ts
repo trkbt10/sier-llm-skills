@@ -30,7 +30,18 @@ export type {
   EvidenceStep,
   EvidenceTestCase,
   EvidenceReport,
+  EvidenceSheetSchema,
+  EvidenceColumnDef,
+  ScreenshotPlacement,
+  CoverSheetField,
+  SummaryCells,
+  CellPosition,
 } from "./evidence-report/types";
+
+// スキーマ
+export { validateEvidenceSheetSchema } from "./evidence-report/schema-validator";
+export { templateConfigToSchema } from "./evidence-report/schema-compat";
+export { resolveFieldValue, buildEvidenceSheetFromSchema, buildCoverSheetValues } from "./evidence-report/schema-driven-sheets";
 
 // 操作履歴
 export type {
