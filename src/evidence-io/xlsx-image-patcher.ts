@@ -6,8 +6,8 @@
  */
 
 import { parseWorkbook } from "aurochs/xlsx/parser";
-import { patchWorkbook } from "aurochs/xlsx/patcher";
-import type { SheetUpdate } from "aurochs/xlsx/patcher";
+import { patchWorkbook } from "aurochs/xlsx/builder";
+import type { SheetUpdate } from "aurochs/xlsx/builder";
 import type { MediaPart } from "aurochs/xlsx/builder";
 import { rowIdx, colIdx } from "aurochs/xlsx/domain";
 import type { XlsxDrawing, XlsxDrawingAnchor } from "aurochs/xlsx/domain";

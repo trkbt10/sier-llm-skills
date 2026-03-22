@@ -5,8 +5,8 @@
  */
 
 import { parseWorkbook } from "aurochs/xlsx/parser";
-import { patchWorkbook } from "aurochs/xlsx/patcher";
-import type { CellUpdate, SheetUpdate } from "aurochs/xlsx/patcher";
+import { patchWorkbook } from "aurochs/xlsx/builder";
+import type { CellUpdate, SheetUpdate } from "aurochs/xlsx/builder";
 import { readFile, writeFile } from "node:fs/promises";
 
 export type { CellUpdate, SheetUpdate };
