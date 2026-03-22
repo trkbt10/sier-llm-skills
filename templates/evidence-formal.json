@@ -1,0 +1,15 @@
+{
+  "evidenceSheet": "エビデンス",
+  "headerRow": 1,
+  "columns": {
+    "stepNumber": 1,
+    "testCaseId": 2,
+    "action": 3,
+    "expected": 4,
+    "actual": 5,
+    "status": 6,
+    "timestamp": 7
+  },
+  "screenshotColumn": 7,
+  "imageRowSpan": 15
+}

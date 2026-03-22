@@ -1,0 +1,12 @@
+{
+  "evidenceSheet": "テスト証跡",
+  "headerRow": 2,
+  "columns": {
+    "stepNumber": 1,
+    "action": 2,
+    "expected": 3,
+    "status": 4
+  },
+  "screenshotColumn": 4,
+  "imageRowSpan": 15
+}

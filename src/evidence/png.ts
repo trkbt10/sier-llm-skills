@@ -4,8 +4,8 @@
 
 import type { XlsxExtent } from "aurochs/xlsx/domain";
 
-/** 表示幅 (EMU)。約 480px 相当。1px = 9525 EMU。 */
-const IMAGE_DISPLAY_WIDTH_EMU = 480 * 9525;
+/** デフォルト表示幅 (EMU)。約 600px 相当。1px = 9525 EMU。 */
+const DEFAULT_DISPLAY_WIDTH_EMU = 600 * 9525;
 
 /**
  * PNG ヘッダーから幅と高さを読み取る。
@@ -24,21 +24,19 @@ export function readPngDimensions(data: Uint8Array): { width: number; height: nu
 
 /**
  * 画像データから表示用 EMU extent を計算する。
- * 幅を IMAGE_DISPLAY_WIDTH_EMU に固定し、アスペクト比を維持する。
+ * 指定幅に固定し、アスペクト比を維持する。
  */
-export function computeImageExtent(imageData: Uint8Array): XlsxExtent {
+export function computeImageExtent(imageData: Uint8Array, displayWidthEmu = DEFAULT_DISPLAY_WIDTH_EMU): XlsxExtent {
   const dims = readPngDimensions(imageData);
   if (dims && dims.width > 0 && dims.height > 0) {
-    const cx = IMAGE_DISPLAY_WIDTH_EMU;
+    const cx = displayWidthEmu;
     const cy = Math.round(cx * (dims.height / dims.width));
     return { cx, cy };
   }
-  return { cx: IMAGE_DISPLAY_WIDTH_EMU, cy: 300 * 9525 };
+  return { cx: displayWidthEmu, cy: Math.round(displayWidthEmu * 0.625) };
 }
 
-/**
- * スクリーンショット形式から MIME タイプを返す。
- */
+/** スクリーンショット形式から MIME タイプを返す。 */
 export function screenshotFormatToMime(format: string): string {
   if (format === "jpeg" || format === "jpg") {
     return "image/jpeg";
