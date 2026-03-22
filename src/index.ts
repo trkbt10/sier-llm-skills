@@ -48,6 +48,11 @@ export type { HistoryToEvidenceOptions } from "./operation-replay/history-to-evi
 export { createCdpRecorder } from "./operation-capture/cdp-recorder";
 export type { CdpRecorder, CdpRecorderConfig } from "./operation-capture/cdp-recorder";
 
+// XLSX 読み書き
+export { readXlsxAsText, formatXlsxForLlm, formatSheetForLlm } from "./evidence-report/xlsx-reader";
+export type { SheetText, SheetRow, SheetCell, XlsxReadResult } from "./evidence-report/xlsx-reader";
+export { updateXlsxCells } from "./evidence-report/xlsx-writer";
+
 // MCP サーバー
 export { createEvidenceServer } from "./mcp/evidence-server";
 export type { EvidenceServerConfig } from "./mcp/evidence-server";

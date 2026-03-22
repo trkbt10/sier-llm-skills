@@ -20,6 +20,9 @@ import { historyToEvidence } from "../operation-replay/history-to-evidence";
 import { buildEvidenceXlsx } from "../evidence-report/xlsx-builder";
 import { createCdpRecorder, type CdpRecorder } from "../operation-capture/cdp-recorder";
 import type { StepDescription } from "../operation-record/operation-types";
+import { readXlsxAsText, formatXlsxForLlm, formatSheetForLlm } from "../evidence-report/xlsx-reader";
+import { updateXlsxCells } from "../evidence-report/xlsx-writer";
+import type { SheetUpdate } from "../evidence-report/xlsx-writer";
 
 export type EvidenceServerConfig = {
   readonly strategy: CaptureStrategy;
@@ -180,6 +183,53 @@ const TOOLS: readonly ToolDef[] = [
       required: ["url"],
     },
   },
+  {
+    name: "read_test_spec",
+    description: "XLSX テスト仕様書を読み取り、シート内容をテキストとして返す。LLM がテスト仕様書の構造（ヘッダー、操作手順、期待結果、メタデータ等）を動的に解釈するために使用する",
+    inputSchema: {
+      type: "object",
+      properties: {
+        filePath: { type: "string", description: "XLSX ファイルパス" },
+        sheetName: { type: "string", description: "読み取るシート名 (省略時は全シート)" },
+      },
+      required: ["filePath"],
+    },
+  },
+  {
+    name: "write_test_result",
+    description: "XLSX ファイルの指定セルに値を書き込む。テスト結果（実施日、確認結果、OK/NG数、サマリ等）を書き戻すために使用する",
+    inputSchema: {
+      type: "object",
+      properties: {
+        inputPath: { type: "string", description: "入力 XLSX ファイルパス" },
+        outputPath: { type: "string", description: "出力 XLSX ファイルパス" },
+        updates: {
+          type: "array",
+          description: "シートごとのセル更新",
+          items: {
+            type: "object",
+            properties: {
+              sheetName: { type: "string" },
+              cells: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    col: { type: "string", description: "列名 (A, B, C...)" },
+                    row: { type: "number", description: "行番号 (1始まり)" },
+                    value: { description: "書き込む値 (文字列または数値)" },
+                  },
+                  required: ["col", "row", "value"],
+                },
+              },
+            },
+            required: ["sheetName", "cells"],
+          },
+        },
+      },
+      required: ["inputPath", "outputPath", "updates"],
+    },
+  },
 ];
 
 type TextContent = { type: "text"; text: string };
@@ -264,6 +314,10 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
         return handleBuildEvidence(args);
       case "capture_screenshot":
         return handleCaptureScreenshot(args);
+      case "read_test_spec":
+        return handleReadTestSpec(args);
+      case "write_test_result":
+        return handleWriteTestResult(args);
       default:
         return textResult(`不明なツール: ${name}`);
     }
@@ -508,6 +562,41 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
     } finally {
       await session.close();
     }
+  }
+
+  async function handleReadTestSpec(args: Record<string, unknown>): Promise<ToolResult> {
+    const filePath = args["filePath"] as string;
+    const sheetName = args["sheetName"] as string | undefined;
+
+    const result = await readXlsxAsText(filePath);
+
+    if (sheetName !== undefined) {
+      const sheet = result.sheets.find((s) => s.name === sheetName);
+      if (sheet === undefined) {
+        return textResult(`エラー: シート "${sheetName}" が見つかりません。利用可能: ${result.sheetNames.join(", ")}`);
+      }
+      return textResult(formatSheetForLlm(sheet));
+    }
+
+    return textResult(formatXlsxForLlm(result));
+  }
+
+  async function handleWriteTestResult(args: Record<string, unknown>): Promise<ToolResult> {
+    const inputPath = args["inputPath"] as string;
+    const outputPath = args["outputPath"] as string;
+    const rawUpdates = args["updates"] as Array<{
+      sheetName: string;
+      cells: Array<{ col: string; row: number; value: string | number }>;
+    }>;
+
+    const updates: SheetUpdate[] = rawUpdates.map((u) => ({
+      sheetName: u.sheetName,
+      cells: u.cells.map((c) => ({ col: c.col, row: c.row, value: c.value })),
+    }));
+
+    await updateXlsxCells(inputPath, outputPath, updates);
+    const totalCells = updates.reduce((sum, u) => sum + u.cells.length, 0);
+    return textResult(`XLSX 更新完了: ${outputPath} (${totalCells} セル更新)`);
   }
 
   return server;
