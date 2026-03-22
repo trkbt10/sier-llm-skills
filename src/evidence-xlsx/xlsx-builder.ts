@@ -8,7 +8,7 @@
 import { exportXlsx } from "aurochs/xlsx/builder";
 import type { MediaPart } from "aurochs/xlsx/builder";
 import type { XlsxWorkbook } from "aurochs/xlsx/domain";
-import type { EvidenceReport, EvidenceSheetSchema } from "./types";
+import type { EvidenceReport, EvidenceSheetSchema } from "../evidence-schema/types";
 import { buildEvidenceStyleSheet } from "./xlsx-cells";
 import { buildEvidenceSheetFromSchema } from "./schema-driven-sheets";
 

@@ -23,8 +23,8 @@ export type {
   ClipRegion,
 } from "./browser-control/types";
 
-export { buildEvidenceXlsx } from "./evidence-report/xlsx-builder";
-export type { BuildEvidenceXlsxOptions } from "./evidence-report/xlsx-builder";
+export { buildEvidenceXlsx } from "./evidence-xlsx/xlsx-builder";
+export type { BuildEvidenceXlsxOptions } from "./evidence-xlsx/xlsx-builder";
 
 export type {
   EvidenceStep,
@@ -36,12 +36,12 @@ export type {
   CoverSheetField,
   SummaryCells,
   CellPosition,
-} from "./evidence-report/types";
+} from "./evidence-schema/types";
 
 // スキーマ
-export { validateEvidenceSheetSchema } from "./evidence-report/schema-validator";
-export { resolveFieldValue, buildEvidenceSheetFromSchema, buildCoverSheetValues } from "./evidence-report/schema-driven-sheets";
-export type { EvidenceSheetResult } from "./evidence-report/schema-driven-sheets";
+export { validateEvidenceSheetSchema } from "./evidence-schema/schema-validator";
+export { resolveFieldValue, buildEvidenceSheetFromSchema, buildCoverSheetValues } from "./evidence-xlsx/schema-driven-sheets";
+export type { EvidenceSheetResult } from "./evidence-xlsx/schema-driven-sheets";
 
 // 操作履歴
 export type {
@@ -60,9 +60,9 @@ export { createCdpRecorder } from "./operation-capture/cdp-recorder";
 export type { CdpRecorder, CdpRecorderConfig } from "./operation-capture/cdp-recorder";
 
 // XLSX 読み書き
-export { readXlsxAsText, formatXlsxForLlm, formatSheetForLlm } from "./evidence-report/xlsx-reader";
-export type { SheetText, SheetRow, SheetCell, XlsxReadResult } from "./evidence-report/xlsx-reader";
-export { updateXlsxCells } from "./evidence-report/xlsx-writer";
+export { readXlsxAsText, formatXlsxForLlm, formatSheetForLlm } from "./evidence-io/xlsx-reader";
+export type { SheetText, SheetRow, SheetCell, XlsxReadResult } from "./evidence-io/xlsx-reader";
+export { updateXlsxCells } from "./evidence-io/xlsx-writer";
 
 // MCP サーバー
 export { createEvidenceServer } from "./mcp/evidence-server";

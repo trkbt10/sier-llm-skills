@@ -1,6 +1,6 @@
 /** @file schema-driven-sheets の単体テスト。 */
 import { resolveFieldValue, buildEvidenceSheetFromSchema, buildCoverSheetValues } from "./schema-driven-sheets";
-import type { EvidenceTestCase, EvidenceSheetSchema } from "./types";
+import type { EvidenceTestCase, EvidenceSheetSchema } from "../evidence-schema/types";
 
 const timestamp = new Date("2025-06-15T10:30:00Z");
 

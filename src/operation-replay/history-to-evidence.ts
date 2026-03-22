@@ -5,7 +5,7 @@
  * EvidenceReport を生成する。
  */
 
-import type { EvidenceReport, EvidenceStep, EvidenceTestCase } from "../evidence-report/types";
+import type { EvidenceReport, EvidenceStep, EvidenceTestCase } from "../evidence-schema/types";
 import type { OperationEntry, OperationHistory } from "../operation-record/operation-types";
 
 export type HistoryToEvidenceOptions = {

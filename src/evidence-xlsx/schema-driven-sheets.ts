@@ -13,7 +13,7 @@ import type {
 import type { MediaPart } from "aurochs/xlsx/builder";
 import type {
   EvidenceTestCase, EvidenceStep, EvidenceSheetSchema,
-} from "./types";
+} from "../evidence-schema/types";
 import { strCell, numCell, emptyCell, formatDateTime, sanitizeSheetName } from "./xlsx-cells";
 import { screenshotFormatToMime } from "./png";
 
