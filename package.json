@@ -22,7 +22,8 @@
     "format": "prettier --write .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:cov": "vitest run --coverage",
-    "test": "vitest --run"
+    "test": "vitest --run",
+    "serve:mcp": "bun run src/mcp/serve.ts"
   },
   "devDependencies": {
     "@eslint-community/eslint-plugin-eslint-comments": "^4.7.1",

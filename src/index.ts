@@ -10,9 +10,9 @@
  * - chrome-mcp: chrome-devtools-mcp (Google 公式 MCP) 経由
  */
 
-export { createHeadlessCaptureStrategy } from "./capture/headless/headless-capture";
-export { createCdpCaptureStrategy } from "./capture/cdp/cdp-capture";
-export { createChromeMcpCaptureStrategy } from "./capture/chrome-mcp/chrome-mcp-capture";
+export { createHeadlessCaptureStrategy } from "./browser-control/headless/headless-capture";
+export { createCdpCaptureStrategy } from "./browser-control/cdp/cdp-capture";
+export { createChromeMcpCaptureStrategy } from "./browser-control/chrome-mcp/chrome-mcp-capture";
 
 export type {
   CaptureStrategy,
@@ -21,13 +21,32 @@ export type {
   Viewport,
   ScreenshotOptions,
   ClipRegion,
-} from "./capture/types";
+} from "./browser-control/types";
 
-export { buildEvidenceXlsx } from "./evidence/xlsx-builder";
-export type { BuildEvidenceXlsxOptions } from "./evidence/xlsx-builder";
+export { buildEvidenceXlsx } from "./evidence-report/xlsx-builder";
+export type { BuildEvidenceXlsxOptions } from "./evidence-report/xlsx-builder";
 
 export type {
   EvidenceStep,
   EvidenceTestCase,
   EvidenceReport,
-} from "./evidence/types";
+} from "./evidence-report/types";
+
+// 操作履歴
+export type {
+  BrowserOperation,
+  OperationEntry,
+  OperationHistory,
+} from "./operation-record/operation-types";
+export { serializeHistory, deserializeHistory } from "./operation-record/operation-io";
+export { createRecordingSession } from "./operation-capture/recording-session";
+export type { RecordingSession, RecordingSessionConfig } from "./operation-capture/recording-session";
+export { replayHistory } from "./operation-replay/replay";
+export { historyToEvidence } from "./operation-replay/history-to-evidence";
+export type { HistoryToEvidenceOptions } from "./operation-replay/history-to-evidence";
+export { createCdpRecorder } from "./operation-capture/cdp-recorder";
+export type { CdpRecorder, CdpRecorderConfig } from "./operation-capture/cdp-recorder";
+
+// MCP サーバー
+export { createEvidenceServer } from "./mcp/evidence-server";
+export type { EvidenceServerConfig } from "./mcp/evidence-server";
