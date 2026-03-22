@@ -15,7 +15,7 @@ import type {
   EvidenceTestCase, EvidenceStep, EvidenceSheetSchema,
 } from "../evidence-schema/types";
 import { strCell, numCell, emptyCell, formatDateTime, sanitizeSheetName } from "./xlsx-cells";
-import { screenshotFormatToMime } from "./png";
+import { screenshotFormatToMime, computeImageExtent } from "./png";
 
 /** シート構築結果。 */
 export type EvidenceSheetResult = {
@@ -116,13 +116,13 @@ export function buildEvidenceSheetFromSchema(
       cells: dataCells,
     });
 
-    // 残りの行 (行高さのみ)
+    // 残りの行 (空セル付きで dimension を正しく広げる)
     for (const r of Array.from({ length: imageRowSpan - 1 }, (_, i) => dataRow + 1 + i)) {
       rows.push({
         rowNumber: rowIdx(r),
         height: SCREENSHOT_ROW_HEIGHT,
         customHeight: true,
-        cells: [],
+        cells: [emptyCell(1, r, s)],
       });
     }
 
@@ -135,6 +135,8 @@ export function buildEvidenceSheetFromSchema(
 
     // twoCellAnchor
     const relId = `rId${idx + 1}`;
+
+    const extent = computeImageExtent(step.screenshot);
 
     anchors.push({
       type: "twoCellAnchor",
@@ -155,6 +157,7 @@ export function buildEvidenceSheetFromSchema(
         type: "picture",
         nvPicPr: { id: idx + 1, name: `Screenshot${idx + 1}` },
         blipRelId: relId,
+        extent,
       },
     });
 
