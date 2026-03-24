@@ -247,7 +247,7 @@ const TOOLS: readonly ToolDef[] = [
   },
   {
     name: "patch_screenshots",
-    description: "既存 XLSX ファイルにスクリーンショット画像を直接注入する。元のデザインを維持したまま画像を追加する",
+    description: "既存 XLSX ファイルにスクリーンショット画像を注入する。セル位置と行スパンを指定すると、行高さ・列幅・セル結合・DrawingML アンカーを自動算出する",
     inputSchema: {
       type: "object",
       properties: {
@@ -262,14 +262,15 @@ const TOOLS: readonly ToolDef[] = [
             properties: {
               historyPath: { type: "string", description: "操作履歴 JSON パス (スクショ取得元)" },
               stepIndex: { type: "number", description: "操作履歴内のステップ番号 (0始まり)" },
-              fromCol: { type: "number", description: "開始列 (0-based)" },
-              fromRow: { type: "number", description: "開始行 (0-based)" },
-              toCol: { type: "number", description: "終了列 (0-based)" },
-              toRow: { type: "number", description: "終了行 (0-based)" },
+              col: { type: "number", description: "配置先の列番号 (1-based)" },
+              row: { type: "number", description: "配置先の開始行番号 (1-based)" },
+              rowSpan: { type: "number", description: "画像が占める行数" },
             },
-            required: ["historyPath", "stepIndex", "fromCol", "fromRow", "toCol", "toRow"],
+            required: ["historyPath", "stepIndex", "col", "row", "rowSpan"],
           },
         },
+        rowHeight: { type: "number", description: "スクリーンショット行の高さ (pt)。省略時は 20pt" },
+        colWidth: { type: "number", description: "スクリーンショット列の幅 (文字数単位)。省略時は 70" },
       },
       required: ["inputPath", "outputPath", "sheetName", "images"],
     },
@@ -680,11 +681,12 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
     const rawImages = args["images"] as Array<{
       historyPath: string;
       stepIndex: number;
-      fromCol: number;
-      fromRow: number;
-      toCol: number;
-      toRow: number;
+      col: number;
+      row: number;
+      rowSpan: number;
     }>;
+    const rowHeight = args["rowHeight"] as number | undefined;
+    const colWidth = args["colWidth"] as number | undefined;
 
     // 操作履歴からスクリーンショットを取得
     const images: ImageInsert[] = [];
@@ -699,16 +701,17 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
       images.push({
         data: entry.screenshot!,
         contentType: screenshotFormatToMime(entry.screenshotFormat ?? "png"),
-        fromCol: raw.fromCol,
-        fromRow: raw.fromRow,
-        toCol: raw.toCol,
-        toRow: raw.toRow,
+        col: raw.col,
+        row: raw.row,
+        rowSpan: raw.rowSpan,
       });
     }
 
     await patchXlsxWithImages(inputPath, outputPath, [{
       sheetName,
       images,
+      rowHeight,
+      colWidth,
     }]);
 
     return textResult(`スクリーンショット注入完了: ${outputPath} (${images.length} 枚)`);

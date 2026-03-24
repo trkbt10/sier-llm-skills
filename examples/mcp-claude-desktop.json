@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "evidence": {
+      "command": "npx",
+      "args": ["screenshot-evidence-for-llm"],
+      "env": {
+        "OUTPUT_DIR": "./evidence-output"
+      }
+    }
+  }
+}

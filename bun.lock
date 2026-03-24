@@ -6,7 +6,7 @@
       "name": "workbox",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.27.1",
-        "aurochs": "file:../web-pptx/publish/aurochs",
+        "aurochs": "0.9.0",
         "chrome-remote-interface": "^0.34.0",
         "fflate": "^0.8.2",
       },
@@ -266,7 +266,7 @@
 
     "async-function": ["async-function@1.0.0", "", {}, "sha512-hsU18Ae8CDTR6Kgu9DYf0EbCr/a5iGL0rytQDobUcdpYOKokk8LEjVphnXkDkgpi0wYVsqrXuP0bZxJaTqdgoA=="],
 
-    "aurochs": ["aurochs@file:../web-pptx/publish/aurochs", { "peerDependencies": { "react": "^18.0.0 || ^19.0.0", "react-dom": "^18.0.0 || ^19.0.0" }, "optionalPeers": ["react", "react-dom"], "bin": { "aurochs": "./dist/cli.js" } }],
+    "aurochs": ["aurochs@0.9.0", "", { "peerDependencies": { "react": "^18.0.0 || ^19.0.0", "react-dom": "^18.0.0 || ^19.0.0" }, "optionalPeers": ["react", "react-dom"], "bin": { "aurochs": "dist/cli.js" } }, "sha512-pb1d7kSiD4C6xH4tFycVFW/XfDvBxtKh3AgNsZXz9AtC9Z+ADJPTX1uQElYWaiGKArTWaRlck46SC55Wt44MOQ=="],
 
     "available-typed-arrays": ["available-typed-arrays@1.0.7", "", { "dependencies": { "possible-typed-array-names": "^1.0.0" } }, "sha512-wvUjBtSGN7+7SjNpq/9M2Tg350UZD3q62IFZLbRAR1bSMlCo1ZaeW+BJ+D090e4hIIZLBcTDWe4Mh4jvUDajzQ=="],
 

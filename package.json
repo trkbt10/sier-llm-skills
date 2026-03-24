@@ -53,7 +53,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
-    "aurochs": "file:../web-pptx/publish/aurochs",
+    "aurochs": "0.9.0",
     "chrome-remote-interface": "^0.34.0",
     "fflate": "^0.8.2"
   },
