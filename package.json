@@ -1,6 +1,6 @@
 {
   "name": "@trkbt10/sier-llm-skills",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -14,8 +14,13 @@
       "import": "./dist/mcp-serve.js"
     }
   },
+  "files": [
+    "dist",
+    "lib",
+    "README.md"
+  ],
   "bin": {
-    "evidence-mcp": "./dist/mcp-serve.js"
+    "sier-llm-skills": "./dist/mcp-serve.js"
   },
   "packageManager": "bun@1.3.11",
   "sideEffects": false,

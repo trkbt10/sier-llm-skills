@@ -34,6 +34,9 @@ export default defineConfig({
     },
     rollupOptions: {
       external: EXTERNAL,
+      output: {
+        banner: "#!/usr/bin/env node",
+      },
     },
   },
 });
