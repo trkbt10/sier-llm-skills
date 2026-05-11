@@ -169,3 +169,6 @@ dist
 .pnp.*
 
 AGENTS.md
+
+# indexion agent orient cache (may contain task descriptions and prompts)
+.indexion/
