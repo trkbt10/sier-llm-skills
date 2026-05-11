@@ -22,7 +22,7 @@
   "bin": {
     "sier-llm-skills": "./dist/mcp-serve.js"
   },
-  "packageManager": "bun@1.3.11",
+  "packageManager": "bun@1.3.13",
   "sideEffects": false,
   "scripts": {
     "build": "vite build",
@@ -38,27 +38,28 @@
   "devDependencies": {
     "@eslint-community/eslint-plugin-eslint-comments": "^4.7.1",
     "@eslint/js": "^10.0.1",
-    "@types/node": "^25.5.0",
+    "@types/node": "^25.6.2",
     "@types/react": "^19.2.14",
-    "@typescript-eslint/eslint-plugin": "^8.57.1",
-    "@typescript-eslint/parser": "^8.57.1",
-    "@vitest/coverage-v8": "^4.1.0",
-    "ajv": "^8.18.0",
-    "eslint": "^10.0.3",
+    "@typescript-eslint/eslint-plugin": "^8.59.2",
+    "@typescript-eslint/parser": "^8.59.2",
+    "@vitest/coverage-v8": "^4.1.5",
+    "ajv": "^8.20.0",
+    "eslint": "^10.3.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-jsdoc": "^62.8.0",
-    "prettier": "^3.8.1",
+    "eslint-plugin-jsdoc": "^62.9.0",
+    "happy-dom": "^20.9.0",
+    "prettier": "^3.8.3",
     "rimraf": "^6.1.3",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.57.1",
-    "vite": "^8.0.0",
+    "typescript-eslint": "^8.59.2",
+    "vite": "^8.0.11",
     "vite-plugin-dts": "^4",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.5"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.27.1",
-    "aurochs": "0.9.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "aurochs": "0.12.4",
     "chrome-remote-interface": "^0.34.0",
     "fflate": "^0.8.2"
   },
