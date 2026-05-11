@@ -8,28 +8,44 @@
 import type { OperationEntry, OperationHistory } from "./operation-types";
 
 /** JSON 内でスクリーンショットを base64 文字列として表現する型。 */
-type SerializedEntry = Omit<OperationEntry, "screenshot"> & {
+type SerializedEntry = Omit<OperationEntry, "screenshot" | "screenshotBefore"> & {
   readonly screenshot?: string;
+  readonly screenshotBefore?: string;
 };
 
 type SerializedHistory = Omit<OperationHistory, "entries"> & {
   readonly entries: readonly SerializedEntry[];
 };
 
+function decodeEntry(entry: SerializedEntry): OperationEntry {
+  const { screenshot, screenshotBefore, ...rest } = entry;
+  const out: { -readonly [K in keyof OperationEntry]?: OperationEntry[K] } = { ...rest } as { -readonly [K in keyof OperationEntry]?: OperationEntry[K] };
+  if (screenshot !== undefined) {
+    out.screenshot = base64ToUint8Array(screenshot);
+  }
+  if (screenshotBefore !== undefined) {
+    out.screenshotBefore = base64ToUint8Array(screenshotBefore);
+  }
+  return out as OperationEntry;
+}
+
+function encodeEntry(entry: OperationEntry): SerializedEntry {
+  const { screenshot, screenshotBefore, ...rest } = entry;
+  const out: { -readonly [K in keyof SerializedEntry]?: SerializedEntry[K] } = { ...rest };
+  if (screenshot !== undefined) {
+    out.screenshot = uint8ArrayToBase64(screenshot);
+  }
+  if (screenshotBefore !== undefined) {
+    out.screenshotBefore = uint8ArrayToBase64(screenshotBefore);
+  }
+  return out as SerializedEntry;
+}
+
 /** OperationHistory を JSON 文字列に変換する。 */
 export function serializeHistory(history: OperationHistory): string {
   const serialized: SerializedHistory = {
     ...history,
-    entries: history.entries.map((entry): SerializedEntry => {
-      const { screenshot, ...rest } = entry;
-      if (screenshot === undefined) {
-        return rest;
-      }
-      return {
-        ...rest,
-        screenshot: uint8ArrayToBase64(screenshot),
-      };
-    }),
+    entries: history.entries.map(encodeEntry),
   };
   return JSON.stringify(serialized, undefined, 2);
 }
@@ -57,18 +73,7 @@ export function deserializeHistory(json: string): OperationHistory {
     throw new Error("Invalid operation history: entries must be an array");
   }
 
-  const entries: OperationEntry[] = (obj["entries"] as SerializedEntry[]).map(
-    (entry): OperationEntry => {
-      const { screenshot, ...rest } = entry;
-      if (screenshot === undefined) {
-        return rest as Omit<SerializedEntry, "screenshot"> as OperationEntry;
-      }
-      return {
-        ...rest,
-        screenshot: base64ToUint8Array(screenshot),
-      } as Omit<SerializedEntry, "screenshot"> & { screenshot: Uint8Array } as OperationEntry;
-    },
-  );
+  const entries: OperationEntry[] = (obj["entries"] as SerializedEntry[]).map(decodeEntry);
 
   return {
     version: 1,

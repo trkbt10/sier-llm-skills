@@ -25,6 +25,16 @@ async function executeOperation(
       await session.type(operation.selector, operation.text);
       return {};
     }
+    case "input": {
+      // 手動観測の確定入力。再生時は能動入力として扱う。
+      await session.type(operation.selector, operation.value);
+      return {};
+    }
+    case "drag-and-drop": {
+      // 現状は再生未対応 (synthetic dragstart/drop の合成が必要)。
+      // entry の error にメッセージを残せるよう throw する。
+      throw new Error("drag-and-drop replay is not implemented");
+    }
     case "evaluate": {
       const evaluateResult = await session.evaluate(operation.expression);
       return { evaluateResult };

@@ -49,8 +49,12 @@ export type {
   OperationEntry,
   OperationHistory,
   StepDescription,
+  ElementSemantics,
+  TargetRect,
+  PointerType,
 } from "./operation-record/operation-types";
 export { serializeHistory, deserializeHistory } from "./operation-record/operation-io";
+export { describeOperationDone } from "./operation-record/describe-operation";
 export { createRecordingSession } from "./operation-capture/recording-session";
 export type { RecordingSession, RecordingSessionConfig } from "./operation-capture/recording-session";
 export { replayHistory } from "./operation-replay/replay";
@@ -58,6 +62,25 @@ export { historyToEvidence } from "./operation-replay/history-to-evidence";
 export type { HistoryToEvidenceOptions } from "./operation-replay/history-to-evidence";
 export { createCdpRecorder } from "./operation-capture/cdp-recorder";
 export type { CdpRecorder, CdpRecorderConfig } from "./operation-capture/cdp-recorder";
+
+// マニュアル木 (URL 区切りのページセグメント → 推敲 → 1 ページ xlsx)
+export { buildManualTree } from "./operation-segments/build-manual-tree";
+export { refineManualTree } from "./operation-segments/refine-manual-tree";
+export {
+  serializeManualTree,
+  deserializeManualTree,
+} from "./operation-segments/manual-tree-io";
+export type {
+  ManualTree,
+  PageSegment,
+  OperationGroup,
+  ManualTreeEdits,
+  ManualTreePageEdit,
+  ManualTreeGroupEdit,
+  ManualTreeEntryEdit,
+} from "./operation-segments/manual-tree-types";
+export { treeToEvidence, isSectionStep } from "./operation-replay/tree-to-evidence";
+export type { TreeToEvidenceOptions } from "./operation-replay/tree-to-evidence";
 
 // XLSX 読み書き
 export { readXlsxAsText, formatXlsxForLlm, formatSheetForLlm } from "./evidence-io/xlsx-reader";

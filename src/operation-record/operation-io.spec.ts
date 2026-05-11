@@ -102,6 +102,30 @@ describe("operation-io", () => {
     ).toThrow("missing viewport");
   });
 
+  it("round-trips screenshotBefore alongside screenshot", () => {
+    const withBefore: OperationHistory = {
+      ...sampleHistory,
+      entries: [
+        {
+          operation: { kind: "click", selector: "#x" },
+          timestamp: "2026-03-22T10:00:05.000Z",
+          url: "https://example.com",
+          durationMs: 10,
+          screenshot: new Uint8Array([0xaa, 0xbb]),
+          screenshotFormat: "png",
+          screenshotBefore: new Uint8Array([0x11, 0x22, 0x33]),
+          screenshotBeforeFormat: "png",
+        },
+      ],
+    };
+
+    const restored = deserializeHistory(serializeHistory(withBefore));
+    const e = restored.entries[0];
+    expect(e.screenshot).toEqual(new Uint8Array([0xaa, 0xbb]));
+    expect(e.screenshotBefore).toEqual(new Uint8Array([0x11, 0x22, 0x33]));
+    expect(e.screenshotBeforeFormat).toBe("png");
+  });
+
   it("throws on missing entries", () => {
     expect(() =>
       deserializeHistory(

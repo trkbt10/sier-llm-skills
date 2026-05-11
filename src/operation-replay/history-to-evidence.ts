@@ -52,15 +52,38 @@ export function historyToEvidence(
   };
 }
 
+function targetLabel(operation: OperationEntry["operation"]): string {
+  if (operation.kind === "click" || operation.kind === "input") {
+    return operation.semantics?.humanLabel ?? operation.selector;
+  }
+  if (operation.kind === "type") {
+    return operation.selector;
+  }
+  return "";
+}
+
+function dragLabels(operation: Extract<OperationEntry["operation"], { kind: "drag-and-drop" }>): { src: string; tgt: string } {
+  return {
+    src: operation.sourceSemantics?.humanLabel ?? operation.sourceSelector,
+    tgt: operation.targetSemantics?.humanLabel ?? operation.targetSelector,
+  };
+}
+
 function describeAction(entry: OperationEntry): string {
   const { operation } = entry;
   switch (operation.kind) {
     case "navigate":
       return `${operation.url} に遷移`;
     case "click":
-      return `${operation.selector} をクリック`;
+      return `「${targetLabel(operation)}」をクリック`;
     case "type":
       return `${operation.selector} に "${operation.text}" を入力`;
+    case "input":
+      return `「${targetLabel(operation)}」に "${operation.value}" を入力`;
+    case "drag-and-drop": {
+      const { src, tgt } = dragLabels(operation);
+      return `「${src}」を「${tgt}」へドラッグ`;
+    }
     case "evaluate":
       return `スクリプト実行: ${operation.expression}`;
     case "screenshot":
@@ -76,9 +99,15 @@ function describeExpected(entry: OperationEntry): string {
     case "navigate":
       return `${operation.url} が表示される`;
     case "click":
-      return `${operation.selector} のクリックが成功する`;
+      return `「${targetLabel(operation)}」のクリックが受理される`;
     case "type":
       return `${operation.selector} にテキストが入力される`;
+    case "input":
+      return `「${targetLabel(operation)}」に値が確定する`;
+    case "drag-and-drop": {
+      const { src, tgt } = dragLabels(operation);
+      return `「${src}」が「${tgt}」にドロップされる`;
+    }
     case "evaluate":
       return "スクリプトが正常に実行される";
     case "screenshot":
@@ -96,11 +125,17 @@ function describeActual(entry: OperationEntry): string {
   const { operation } = entry;
   switch (operation.kind) {
     case "navigate":
-      return `${operation.url} が正常に表示された`;
+      return `${operation.url} が表示された`;
     case "click":
-      return `${operation.selector} のクリックが成功した`;
+      return `「${targetLabel(operation)}」をクリックした`;
     case "type":
-      return `${operation.selector} にテキストが入力された`;
+      return `${operation.selector} にテキストを入力した`;
+    case "input":
+      return `「${targetLabel(operation)}」に "${operation.value}" を入力した`;
+    case "drag-and-drop": {
+      const { src, tgt } = dragLabels(operation);
+      return `「${src}」を「${tgt}」へドロップした`;
+    }
     case "evaluate":
       return `実行結果: ${JSON.stringify(entry.evaluateResult)}`;
     case "screenshot":

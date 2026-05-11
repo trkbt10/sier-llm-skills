@@ -28,6 +28,14 @@ import type { EvidenceSheetSchema } from "../evidence-schema/types";
 import { validateEvidenceSheetSchema } from "../evidence-schema/schema-validator";
 import { patchXlsxWithImages } from "../evidence-io/xlsx-image-patcher";
 import type { ImageInsert } from "../evidence-io/xlsx-image-patcher";
+import { buildManualTree } from "../operation-segments/build-manual-tree";
+import { refineManualTree } from "../operation-segments/refine-manual-tree";
+import type { ManualTreeEdits } from "../operation-segments/manual-tree-types";
+import {
+  serializeManualTree,
+  deserializeManualTree,
+} from "../operation-segments/manual-tree-io";
+import { treeToEvidence } from "../operation-replay/tree-to-evidence";
 
 export type EvidenceServerConfig = {
   readonly strategy: CaptureStrategy;
@@ -147,8 +155,13 @@ const TOOLS: readonly ToolDef[] = [
   },
   {
     name: "recording_stop",
-    description: "レコーディングを停止し、操作履歴 JSON を出力する",
-    inputSchema: { type: "object", properties: {} },
+    description: "レコーディングを停止し、操作履歴 JSON を出力する。emitTree を指定するとマニュアル木 (tree.json) も同時出力する",
+    inputSchema: {
+      type: "object",
+      properties: {
+        emitTree: { type: "boolean", description: "URL区切りで分割したマニュアル木 (tree.json) を併せて出力する" },
+      },
+    },
   },
   {
     name: "replay",
@@ -243,6 +256,46 @@ const TOOLS: readonly ToolDef[] = [
         schema: { type: "object", description: "EvidenceSheetSchema JSON" },
       },
       required: ["schema"],
+    },
+  },
+  {
+    name: "build_manual_tree",
+    description: "操作履歴 JSON から URL 区切りのマニュアル木 (ManualTree) を組み立て tree.json を出力する。手編集または LLM 推敲を経て build_manual_from_tree で xlsx 化する",
+    inputSchema: {
+      type: "object",
+      properties: {
+        historyPath: { type: "string", description: "操作履歴 JSON ファイルパス" },
+      },
+      required: ["historyPath"],
+    },
+  },
+  {
+    name: "refine_manual_tree",
+    description: "ManualTree (tree.json) に推敲パッチ (見出し/章タイトル/action/expected) を適用して新しい tree.json を出力する。LLM が推測した差分を流し込む経路でもある",
+    inputSchema: {
+      type: "object",
+      properties: {
+        treePath: { type: "string", description: "入力 tree.json パス" },
+        outputPath: { type: "string", description: "出力 tree.json パス。省略時は output ディレクトリに自動命名" },
+        edits: {
+          type: "object",
+          description: "ManualTreeEdits。title / pages[].pageTitle / pages[].groups[].heading / pages[].groups[].entries[].action|expected を指定",
+        },
+      },
+      required: ["treePath", "edits"],
+    },
+  },
+  {
+    name: "build_manual_from_tree",
+    description: "ManualTree (tree.json) から 1 ページの xlsx 操作説明書を生成する。section 行と操作行の組合せで 1 シートに集約する",
+    inputSchema: {
+      type: "object",
+      properties: {
+        treePath: { type: "string", description: "tree.json ファイルパス" },
+        testCaseName: { type: "string", description: "テストケース名 (省略時は tree.title)" },
+        testCaseUrl: { type: "string", description: "テスト対象 URL (省略時は最初のページ URL)" },
+      },
+      required: ["treePath"],
     },
   },
   {
@@ -354,7 +407,7 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
       case "recording_start":
         return handleRecordingStart(args);
       case "recording_stop":
-        return handleRecordingStop();
+        return handleRecordingStop(args);
       case "replay":
         return handleReplay(args);
       case "build_evidence":
@@ -367,6 +420,12 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
         return handleWriteTestResult(args);
       case "generate_schema":
         return handleGenerateSchema(args);
+      case "build_manual_tree":
+        return handleBuildManualTree(args);
+      case "refine_manual_tree":
+        return handleRefineManualTree(args);
+      case "build_manual_from_tree":
+        return handleBuildManualFromTree(args);
       case "patch_screenshots":
         return handlePatchScreenshots(args);
       default:
@@ -515,7 +574,7 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
     return textResult(`レコーディング開始: ${title}`);
   }
 
-  async function handleRecordingStop(): Promise<ToolResult> {
+  async function handleRecordingStop(args: Record<string, unknown>): Promise<ToolResult> {
     if (state.activeCdpRecorder === undefined) {
       return textResult("エラー: レコーディングが開始されていません。");
     }
@@ -528,6 +587,14 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
     await writeFile(historyPath, serializeHistory(history));
 
     state.activeCdpRecorder = undefined;
+
+    const emitTree = args["emitTree"] === true;
+    if (emitTree) {
+      const tree = buildManualTree(history);
+      const treePath = join(outputDir, `tree-${timestamp}.json`);
+      await writeFile(treePath, serializeManualTree(tree));
+      return textResult(`レコーディング停止\n操作履歴: ${historyPath}\nマニュアル木: ${treePath}`);
+    }
 
     return textResult(`レコーディング停止\n操作履歴: ${historyPath}`);
   }
@@ -715,6 +782,58 @@ export function createEvidenceServer(config: EvidenceServerConfig): Server {
     }]);
 
     return textResult(`スクリーンショット注入完了: ${outputPath} (${images.length} 枚)`);
+  }
+
+  async function handleBuildManualTree(args: Record<string, unknown>): Promise<ToolResult> {
+    const historyPath = args["historyPath"] as string;
+    const json = await readFile(historyPath, "utf-8");
+    const history = deserializeHistory(json);
+    const tree = buildManualTree(history);
+
+    const outputDir = await ensureOutputDir();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const treePath = join(outputDir, `tree-${timestamp}.json`);
+    await writeFile(treePath, serializeManualTree(tree));
+
+    return textResult(
+      `マニュアル木を生成しました: ${treePath}\n` +
+      `ページ数: ${tree.pages.length}, 総エントリ数: ${tree.pages.reduce((n, p) => n + p.groups.reduce((m, g) => m + g.entries.length, 0), 0)}`,
+    );
+  }
+
+  async function handleRefineManualTree(args: Record<string, unknown>): Promise<ToolResult> {
+    const treePath = args["treePath"] as string;
+    const explicitOutputPath = args["outputPath"] as string | undefined;
+    const edits = args["edits"] as ManualTreeEdits;
+
+    const json = await readFile(treePath, "utf-8");
+    const tree = deserializeManualTree(json);
+    const refined = refineManualTree(tree, edits);
+
+    const outputDir = await ensureOutputDir();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const outputPath = explicitOutputPath ?? join(outputDir, `tree-refined-${timestamp}.json`);
+    await writeFile(outputPath, serializeManualTree(refined));
+
+    return textResult(`マニュアル木を推敲しました: ${outputPath}`);
+  }
+
+  async function handleBuildManualFromTree(args: Record<string, unknown>): Promise<ToolResult> {
+    const treePath = args["treePath"] as string;
+    const testCaseName = args["testCaseName"] as string | undefined;
+    const testCaseUrl = args["testCaseUrl"] as string | undefined;
+
+    const json = await readFile(treePath, "utf-8");
+    const tree = deserializeManualTree(json);
+    const report = treeToEvidence(tree, { testCaseName, testCaseUrl });
+
+    const xlsxData = await buildEvidenceXlsx(report, { schema: state.activeSchema });
+    const outputDir = await ensureOutputDir();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const xlsxPath = join(outputDir, `manual-${timestamp}.xlsx`);
+    await writeFile(xlsxPath, xlsxData);
+
+    return textResult(`xlsx 操作説明書を生成しました: ${xlsxPath}`);
   }
 
   return server;

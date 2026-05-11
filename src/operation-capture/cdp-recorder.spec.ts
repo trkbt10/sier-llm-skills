@@ -21,12 +21,25 @@ describe("createCdpRecorder", () => {
   });
 
   it("start rejects when CDP connection fails", async () => {
-    // debugPort 0 は接続不可なので必ずエラーになる
+    // 1 は特権ポートで CDP listener が居ない前提。
+    // chrome-remote-interface は port=0 を falsy 扱いで 9222 にフォールバックする
+    // ため、実機 Chrome が 9222 で起動中だと通ってしまう。明示的に塞いだ番号を使う。
     const recorder = createCdpRecorder({
-      debugPort: 0,
+      debugPort: 1,
       viewport: { width: 1280, height: 800 },
     });
 
     await expect(recorder.start()).rejects.toThrow();
+  });
+
+  it("accepts an onEntry listener config without throwing at construction", () => {
+    const recorder = createCdpRecorder({
+      debugPort: 9222,
+      viewport: { width: 1280, height: 800 },
+      onEntry: () => {
+        // 受け取れることだけ確認 (CDP 接続テストはしない)
+      },
+    });
+    expect(recorder.start).toBeTypeOf("function");
   });
 });
