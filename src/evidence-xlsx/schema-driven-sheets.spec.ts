@@ -89,10 +89,9 @@ describe("resolveFieldValue", () => {
 });
 
 describe("buildEvidenceSheetFromSchema", () => {
-  it("produces correct number of rows", () => {
+  it("produces 1 header row + 1 row per operation (no padding rows)", () => {
     const result = buildEvidenceSheetFromSchema(schemaEvidence, [testCase]);
-    // 1 header row + 2 steps * 10 rows each = 21 rows
-    expect(result.sheet.rows).toHaveLength(1 + 2 * 10);
+    expect(result.sheet.rows).toHaveLength(1 + 2);
   });
 
   it("creates media entries for screenshots", () => {
@@ -106,7 +105,6 @@ describe("buildEvidenceSheetFromSchema", () => {
 
   it("respects column ordering from schema", () => {
     const result = buildEvidenceSheetFromSchema(schemaEvidence, [testCase]);
-    // Header row is first
     const headerRow = result.sheet.rows[0];
     expect(headerRow.cells).toHaveLength(4);
     expect(headerRow.cells[0].value).toEqual({ type: "string", value: "No." });
@@ -122,9 +120,42 @@ describe("buildEvidenceSheetFromSchema", () => {
     expect(colDefs[1].width).toBe(30);
   });
 
-  it("creates drawing anchors for each step", () => {
+  it("creates one drawing anchor per operation", () => {
     const result = buildEvidenceSheetFromSchema(schemaEvidence, [testCase]);
     expect(result.sheet.drawing?.anchors).toHaveLength(2);
+  });
+
+  it("emits oneCellAnchor anchors (not twoCellAnchor)", () => {
+    const result = buildEvidenceSheetFromSchema(schemaEvidence, [testCase]);
+    const anchors = result.sheet.drawing!.anchors;
+    for (const a of anchors) {
+      expect(a.type).toBe("oneCellAnchor");
+    }
+  });
+
+  it("anchors are placed one per operation row (sequential rows)", () => {
+    const result = buildEvidenceSheetFromSchema(schemaEvidence, [testCase]);
+    const anchors = result.sheet.drawing!.anchors;
+    const a1 = anchors[0];
+    const a2 = anchors[1];
+    if (a1.type !== "oneCellAnchor" || a2.type !== "oneCellAnchor") {
+      throw new Error("expected oneCellAnchor");
+    }
+    // Operation 1 at row 2 (xdr 1), operation 2 at row 3 (xdr 2).
+    expect(a1.from.row).toBe(1);
+    expect(a2.from.row).toBe(2);
+  });
+
+  it("sets a customHeight on operation rows based on image aspect ratio", () => {
+    const result = buildEvidenceSheetFromSchema(schemaEvidence, [testCase]);
+    // Rows 0: header, 1: op 1, 2: op 2
+    const opRow = result.sheet.rows[1];
+    expect(opRow.customHeight).toBe(true);
+    expect(typeof opRow.height).toBe("number");
+    // 画像が壊れた PNG なので fallback で正方形扱い、列幅 70 char ≒ 490px → 高さ ~367 pt
+    // ただし MAX_ROW_HEIGHT_PT = 240 で clip されるので 240 になる。
+    expect(opRow.height).toBeLessThanOrEqual(240);
+    expect(opRow.height).toBeGreaterThan(0);
   });
 });
 
